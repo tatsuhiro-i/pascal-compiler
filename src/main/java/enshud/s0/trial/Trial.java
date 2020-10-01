@@ -42,10 +42,10 @@ public class Trial {
 		}catch(FileNotFoundException e) {
 			//e.printStackTrace();
 			System.out.println("File not found");
-			System.exit(-1);
+			//System.exit(-1);
 		}catch(IOException e) {
 			//e.printStackTrace();
-			System.exit(-1);
+			//System.exit(-1);
 		}
 	}
 }
