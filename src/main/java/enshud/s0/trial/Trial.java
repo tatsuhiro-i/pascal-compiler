@@ -41,12 +41,12 @@ public class Trial {
 			System.out.println(count);
 		}catch(FileNotFoundException e) {
 			//e.printStackTrace();
-			System.out.println("File not found");
+			System.err.println("File not found");
 			//System.exit(-1);
 		}catch(IOException e) {
 			//e.printStackTrace();
 			//System.exit(-1);
-			System.out.println("File not found");
+			System.err.println("File not found");
 		}
 	}
 }
