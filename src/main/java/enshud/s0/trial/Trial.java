@@ -46,6 +46,7 @@ public class Trial {
 		}catch(IOException e) {
 			//e.printStackTrace();
 			//System.exit(-1);
+			System.out.println("File not found");
 		}
 	}
 }
