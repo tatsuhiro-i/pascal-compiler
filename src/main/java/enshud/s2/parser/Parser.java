@@ -585,6 +585,9 @@ public class Parser {
 					break;
 				}
 			}
+			
+	
+		
 
 			//)
 			if(! id.get(index).equals("34")){ return line.get(index); }
