@@ -1192,6 +1192,7 @@ public class Checker {
 		return false;
 	}
 
+	//副プログラムが存在するか判定する
 	public boolean is_block_has_procedure_call(int index) {
 		for(int i= code_block_num; i >= 0; i--) {
 
