@@ -19,7 +19,7 @@ public class Compiler {
 	 */
 	public static void main(final String[] args) {
 		// Compilerを実行してcasを生成する
-		new Compiler().run("data/ts/normal19.ts", "tmp/out.cas");
+		new Compiler().run("data/ts/normal18.ts", "tmp/out.cas");
 
 
 
