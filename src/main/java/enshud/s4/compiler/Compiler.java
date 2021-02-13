@@ -26,7 +26,6 @@ public class Compiler {
 		// 上記casを，CASLアセンブラ & COMETシミュレータで実行する
 		CaslSimulator.run("tmp/out.cas", "tmp/out.ans");
 	}
-
 	/**
 	 * TODO
 	 *
@@ -1542,9 +1541,12 @@ public class Compiler {
 				//配列処理を管理するフラッグ
 				array_flag = 1;
 				//式
+				int flag = negative_flag;
+				negative_flag = 0;
 				call_by_factor_flag = 1;
 				check = is_fomula(id,line,index);
 				call_by_factor_flag = 0;
+				negative_flag = flag;
 				if(! check.equals("0")) { return check; }
 
 				index = gr_index;
@@ -1810,6 +1812,10 @@ public class Compiler {
 	//掛け算のcasコード
 	public void write_mul_cas() {
 		main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
+		//負数判定
+		//main_part.append("\t" + "CPL" + "\t"+ "GR2,=0" + "\n");
+
+
 		main_part.append("\t" + "POP" + "\t" + "GR1" + "\n");
 		main_part.append("\t" + "CALL" + "\t" + "MULT" + "\n");
 		main_part.append("\t" + "PUSH" + "\t" + "0, GR2" + "\n");
