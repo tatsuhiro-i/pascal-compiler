@@ -19,7 +19,7 @@ public class Compiler {
 	 */
 	public static void main(final String[] args) {
 		// Compilerを実行してcasを生成する
-		new Compiler().run("data/ts/normal12.ts", "tmp/out.cas");
+		new Compiler().run("data/ts/normal19.ts", "tmp/out.cas");
 
 
 
@@ -67,6 +67,8 @@ public class Compiler {
 	int call_by_if = 0;//ifからの呼び出し管理
 	int procedure_num = 0;
 	int negative_flag = 0;
+	int mul_count = 0;
+	int div_count = 0;
 
 
 	StringBuilder main_part = new StringBuilder();
@@ -553,6 +555,7 @@ public class Compiler {
 						}
 						variable_name.add(get_name_list.get(index));
 						//変数名がきた時
+						num_of_tmpvar ++;
 						index ++;
 
 						//, がきた時→もう一度続く
@@ -581,6 +584,7 @@ public class Compiler {
 				for(int i = 0; i< variable_name.size(); i ++) {
 					num_of_var ++;
 					code_block[code_block_num].addNode(variable_name.get(i), "variable",id.get(index),num_of_var);
+
 				}
 				//記号表に追加した変数の削除
 				variable_name.clear();
@@ -612,21 +616,37 @@ public class Compiler {
 		else if(id.get(index).equals("37")) {
 			index ++;
 		}
+
 		else {
-			return "Syntax error: line " + line.get(index);
+			return "Syntax error: line "  + line.get(index);
+		}
+		if(num_of_tmpvar == 0) {
+			//スタックポインタの取り出し
+			main_part.append("\t" + "LD" + "\t" + "GR1, GR8" + "\n");
+			main_part.append("\t" + "ADDA" + "\t" + "GR1, =1" + "\n");
+		}
+		else {
+
+			for(int i = 0; i < num_of_tmpvar; i ++) {
+				//スタックポインタの取り出し
+				main_part.append("\t" + "LD" + "\t" + "GR1, GR8" + "\n");
+				main_part.append("\t" + "ADDA" + "\t" + "GR1, =1" + "\n");
+
+				//引数を取得
+				main_part.append("\t" + "LD" + "\t" + "GR2, 0, GR1" + "\n");
+				main_part.append("\t" + "LD" + "\t" + "GR4, =" + String.valueOf(num_of_var - 1 - i) +"\n");
+				main_part.append("\t" + "ST" + "\t" + "GR2, VAR, GR4" + "\n");
+				main_part.append("\t" + "SUBA" + "\t" + "GR1, =1" + "\n");
+
+				//スタック内の引数削除
+				main_part.append("\t" + "LD" + "\t" + "GR1, 0, GR8" + "\n");
+				main_part.append("\t" + "ADDA" + "\t" + "GR8, =1" + "\n");
+				main_part.append("\t" + "ST" + "\t" + "GR1, 0, GR8" + "\n");
+			}
 		}
 
-		main_part.append("\t" + "LD" + "\t" + "GR1, GR8" + "\n");
-		main_part.append("\t" + "ADDA" + "\t" + "GR1, =" + String.valueOf(num_of_tmpvar) + "\n");
-		if(num_of_tmpvar >=1) {
-			main_part.append("\t" + "LD" + "\t" + "GR2, 0, GR1" + "\n");
-			main_part.append("\t" + "LD" + "\t" + "GR4, =" + String.valueOf(num_of_var - 1) +"\n");
-			main_part.append("\t" + "ST" + "\t" + "GR2, VAR, GR4" + "\n");
-			main_part.append("\t" + "SUBA" + "\t" + "GR1, =1" + "\n");
-			main_part.append("\t" + "LD" + "\t" + "GR1, 0, GR8" + "\n");
-			main_part.append("\t" + "ADDA" + "\t" + "GR8, =1" + "\n");
-			main_part.append("\t" + "ST" + "\t" + "GR1, 0, GR8" + "\n");
-		}
+
+
 
 		gr_index = index;
 		return "0";
@@ -912,7 +932,13 @@ public class Compiler {
 		//代入分の左辺
 		//配列の場合
 		if(array_flag == 1) {
-			main_part.append("\t" + "ADDA" + "\t" + "GR3, ="+ String.valueOf(num_variable-2)  + "\n");
+			if(num_variable > 1) {
+				main_part.append("\t" + "ADDA" + "\t" +" GR3, ="+ String.valueOf(num_variable-2) + "\n");
+			}
+			else if(num_variable == 1) {
+				main_part.append("\t" + "ADDA" + "\t" +" GR3, ="+ String.valueOf(num_variable-1) + "\n");
+				main_part.append("\t" + "SUBA" + "\t" +" GR3, ="+ 1 + "\n");
+			}
 			sub_left(array_flag);
 			array_flag = 0;
 
@@ -1144,6 +1170,7 @@ public class Compiler {
 		int or_less_flag = 0;
 		int num_relational = 0;
 		int mod_ope_flag = 0;
+		int negative_counter = 0;
 
 		if(conditional_flag == 1) {
 			conditional_check = 1;
@@ -1193,19 +1220,35 @@ public class Compiler {
 
 					if(mul_ope_flag == 1) {
 						write_mul_cas();
+						if(negative_counter % 2 == 1) {
+							main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
+							main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
+							main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
+							main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
+						}
+						negative_counter = 0;
 						mul_ope_flag = 0;
 					}
 					else if(div_ope_flag == 1) {
 						write_div_cas();
+						if(negative_counter % 2 == 1) {
+							main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
+							main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
+							main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
+							main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
+						}
 						div_ope_flag = 0;
+						negative_counter = 0;
 					}
 					else if(mod_ope_flag == 1) {
 						write_mod_cas();
 						mod_ope_flag = 0;
+						negative_counter = 0;
 					}
 					else if(and_ope_flag == 1) {
 						write_and_cas();
 						and_ope_flag = 0;
+						negative_counter = 0;
 					}
 					//乗法演算子があるか
 					//*,div,/,mod,and
@@ -1218,10 +1261,18 @@ public class Compiler {
 
 						//掛け算
 						if(id.get(index).equals("32")) {
+							if(negative_flag == 1) {
+								negative_counter ++;
+								negative_flag = 0;
+							}
 							mul_ope_flag = 1;
 						}
 						//割り算
 						else if(id.get(index).equals("5")) {
+							if(negative_flag == 1) {
+								negative_counter ++;
+								negative_flag = 0;
+							}
 							div_ope_flag = 1;
 						}
 						//mod
@@ -1246,13 +1297,16 @@ public class Compiler {
 				if(add_ope_flag == 1) {
 					write_add_cas();
 					add_ope_flag = 0;
+					negative_counter = 0;
 				}
 				else if(sub_ope_flag ==1 ) {
 					write_sub_cas();
 					sub_ope_flag = 0;
+					negative_counter = 0;
 				}
 				else if(or_ope_flag == 1) {
 					write_or_cas();
+					negative_counter = 0;
 				}
 
 				//加法演算子
@@ -1267,10 +1321,14 @@ public class Compiler {
 					//足算があることを管理
 					if(id.get(index).equals("30")) {
 						add_ope_flag = 1;
+						//負数の時
+						negative_cas();
 					}
 					//引き算があることを管理
 					else if(id.get(index).equals("31")) {
 						sub_ope_flag = 1;
+						//負数の時
+						negative_cas();
 					}
 					else if(id.get(index).equals("15")) {
 						or_ope_flag = 1;
@@ -1294,6 +1352,7 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				equals_flag = 0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			else if(not_equals_flag == 1) {
 				write_rerational_ope();
@@ -1304,6 +1363,7 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				not_equals_flag = 0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			else if(less_than_flag == 1) {
 				write_rerational_ope();
@@ -1314,6 +1374,7 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				less_than_flag =0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			else if(or_less_flag == 1) {
 				write_rerational_ope();
@@ -1324,6 +1385,7 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				or_less_flag = 0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			else if(or_more_flag == 1) {
 
@@ -1335,6 +1397,7 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				or_more_flag = 0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			else if(more_than_flag == 1){
 				write_rerational_ope();
@@ -1345,11 +1408,14 @@ public class Compiler {
 				main_part.append("BOTH" +  String.valueOf(while_count) + "\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 				more_than_flag = 0;
 				while_count ++;
+				negative_counter = 0;
 			}
 			//関係演算子
 
 			if(id.get(index).equals("24") || id.get(index).equals("25") || id.get(index).equals("26")
 					|| id.get(index).equals("27") || id.get(index).equals("28")|| id.get(index).equals("29")) {
+				//負数の時
+				negative_cas();
 
 				if(id.get(index).equals("24") || id.get(index).equals("25")) {
 					roop_flag = 0;
@@ -1390,6 +1456,8 @@ public class Compiler {
 
 
 		}
+		//負数の時
+		negative_cas();
 
 
 		//条件式から呼び出された時
@@ -1490,12 +1558,19 @@ public class Compiler {
 			//変数出力のcasコードを書き込み
 			if(array_flag == 1) {
 				main_part.append("\t" + "POP" + "\t" +" GR2" + "\n");
-				main_part.append("\t" + "ADDA" + "\t" +" GR2, ="+ String.valueOf(num_variable-2) + "\n");
+				if(num_variable > 1) {
+					main_part.append("\t" + "ADDA" + "\t" +" GR2, ="+ String.valueOf(num_variable-2) + "\n");
+				}
+				else if(num_variable == 1) {
+					main_part.append("\t" + "ADDA" + "\t" +" GR2, ="+ String.valueOf(num_variable-1) + "\n");
+					main_part.append("\t" + "SUBA" + "\t" +" GR2, ="+ 1 + "\n");
+				}
 			}
 			//配列じゃない
 			else if(array_flag == 0) {
 				main_part.append("\t" + "LD" + "\t" +" GR2, " + "=" + String.valueOf(num_variable-1) + "\n");
 			}
+			//変数のcasファイル書き出し
 			set_variable();
 
 			//整数書き出しのcasコード
@@ -1532,14 +1607,7 @@ public class Compiler {
 				//casファイル生成
 				//if(check_call_by_sub_fomula == 1) {
 				main_part.append("\t" + "PUSH" + "\t" + get_name_list.get(index) + "\n");
-				//負数の時
-				if(negative_flag == 1) {
-					main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
-					main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
-					main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
-					main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
-					negative_flag = 0;
-				}
+
 				//}
 			}
 			//char
@@ -1571,6 +1639,11 @@ public class Compiler {
 
 			fomula_flag = 1;
 			call_by_factor_flag = 1;
+			int negative_cas = 0;
+			if(negative_flag == 1) {
+				negative_cas = 1;
+				negative_flag = 0;
+			}
 			//式
 			check = is_fomula(id,line,index);
 			if(! check.equals("0")) { return check;}
@@ -1582,6 +1655,12 @@ public class Compiler {
 			//)
 			if(! id.get(index).equals("34")) { return "Syntax error: line " +line.get(index); }
 			index ++;
+			if(negative_cas == 1) {
+				main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
+				main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
+				main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
+				main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
+			}
 
 		}
 		//not 因子
@@ -1710,13 +1789,7 @@ public class Compiler {
 		//main_part.append("\t" + "LD" + "\t" +" GR2, " + "=" + String.valueOf(num_of_variable) + "\n");
 		main_part.append("\t" + "LD" + "\t" + "GR1, VAR, GR2" + "\n");
 		main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
-		if(negative_flag == 1) {
-			main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
-			main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
-			main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
-			main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
-			negative_flag = 0;
-		}
+
 	}
 
 	//足算のcasコード
@@ -1737,12 +1810,10 @@ public class Compiler {
 	//掛け算のcasコード
 	public void write_mul_cas() {
 		main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
-		//main_part.append("\t" + "CPA" + "\t" + "GR2, 0" + "\n");
-		//main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
-		//main_part.append("REVERSE" + String.valueOf(while_count)+ "\t" + "LD" + "\t" + "GR5, =1" + "\n");
 		main_part.append("\t" + "POP" + "\t" + "GR1" + "\n");
 		main_part.append("\t" + "CALL" + "\t" + "MULT" + "\n");
 		main_part.append("\t" + "PUSH" + "\t" + "0, GR2" + "\n");
+
 	}
 	//割り算のcasコード
 	public void write_div_cas() {
@@ -1759,6 +1830,16 @@ public class Compiler {
 			main_part.append("\t" + "CALL" + "\t" + "DIV" + "\n");
 			main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
 		}
+
+	public void negative_cas() {
+		if(negative_flag == 1) {
+			main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
+			main_part.append("\t" + "LD" + "\t" + "GR1, =0" + "\n");
+			main_part.append("\t" + "SUBA" + "\t" + "GR1, GR2" + "\n");
+			main_part.append("\t" + "PUSH" + "\t" + "0, GR1" + "\n");
+			negative_flag = 0;
+		}
+	}
 
 	public void write_and_cas() {
 		main_part.append("\t" + "POP" + "\t" + "GR2" + "\n");
