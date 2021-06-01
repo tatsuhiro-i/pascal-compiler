@@ -1,2 +1,2 @@
 # pascal-compiler
-compiler pascal-like language
+compiler for pascal-like language
