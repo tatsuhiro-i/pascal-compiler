@@ -2,4 +2,4 @@
 compiler for pascal-like language
 
 # Author
-https://github.com/tatsuhiro-i
+[Tatsuhiro Ichikawa](https://github.com/tatsuhiro-i)
